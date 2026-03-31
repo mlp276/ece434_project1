@@ -1,0 +1,29 @@
+# Compiled Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Executables
+*.exe
+*.out
+*.app
+*.hex
+
+# Debug/Build output
+*.dSYM/
+*.su
+*.map
+*.gch
+*.pch
+*.d
