@@ -26,32 +26,35 @@ int main(int argc, char *argv[])
 
     char *input_file_name = "input.txt";
     int input_file = open(input_file_name, O_RDONLY);
-    int pipefds[2];
-    char buffer[BUFFER_SIZE];
-    size_t bytes_read;
+    int pipefds_parent[2];
 
-    if (pipe(pipefds) < 0)
+    if (pipe(pipefds_parent) < 0)
     {
         /* Return error, pipe failed */
         perror("pipe");
         exit(1);
     }
 
+    char buffer[BUFFER_SIZE];
+    size_t bytes_read;
     /* Write data from the input file to the pipe */
     while ((bytes_read = read(input_file, buffer, sizeof(buffer))) > 0)
     {
-        write(pipefds[PIPE_WRITE_END], buffer, bytes_read);
+        write(pipefds_parent[PIPE_WRITE_END], buffer, bytes_read);
     }
-    close(pipefds[PIPE_WRITE_END]);
-
-    /* Read the data from the pipe and print that data */
-    while ((bytes_read = read(pipefds[PIPE_READ_END], buffer, sizeof(buffer))) > 0)
-    {
-        write(STDOUT_FILENO, buffer, bytes_read);
-    }
-    close(pipefds[PIPE_READ_END]);
-
+    close(pipefds_parent[PIPE_WRITE_END]);
     close(input_file);
+
+    /* FORK CHILDREN TO ALLOCATE RESOURCES */
+
+    int depth;
+    if (PN == 1) depth = 1;
+    else depth = (int) ceil(log2(PN));
+    int max_leaf_nodes = (int) ceil(pow(2, depth));
+
+    printf("depth: %d, max_leaf_nodes: %d\n", depth, max_leaf_nodes);
+
+    binary_fork_processes(depth);
 
     return 0;
 }
