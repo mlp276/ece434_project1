@@ -20,6 +20,27 @@ int main(int argc, char *argv[])
     H  = (int) get_integer(argv[2]);
     PN = (int) get_integer(argv[3]);
 
+    if (L < 12000)
+    {
+        /* Return error, must be >= 12000 */
+        fprintf(stderr, "Improper L argument: must be >= 12000");
+        exit(1);
+    }
+    
+    if (H < 150)
+    {
+        /* Return error, must be >= 150 */
+        fprintf(stderr, "Improper H argument: must be >= 150");
+        exit(1);
+    }
+
+    if (PN < 1)
+    {
+        /* Return error, must be >= 1 */
+        fprintf(stderr, "Improper PN argument: must have at least 1 processes active");
+        exit(1);
+    }
+
     printf("L: %d, H: %d, PN: %d\n", L, H, PN);
 
     /* OPENING THE INPUT FILE AND WRITING ITS DATA TO PIPE */
@@ -47,14 +68,15 @@ int main(int argc, char *argv[])
 
     /* FORK CHILDREN TO ALLOCATE RESOURCES */
 
-    int depth;
-    if (PN == 1) depth = 1;
-    else depth = (int) ceil(log2(PN));
-    int max_leaf_nodes = (int) ceil(pow(2, depth));
+    // int depth;
+    // if (PN == 1) depth = 1;
+    // else depth = (int) ceil(log2(PN));
+    // int max_leaf_nodes = (int) ceil(pow(2, depth));
 
-    printf("depth: %d, max_leaf_nodes: %d\n", depth, max_leaf_nodes);
+    // printf("depth: %d, max_leaf_nodes: %d\n", depth, max_leaf_nodes);
 
-    binary_fork_processes(depth);
+    binary_fork_processes(PN);
+    printf("Process: %d is also the root node\n", getpid());
 
     return 0;
 }

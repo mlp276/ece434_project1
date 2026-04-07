@@ -23,9 +23,9 @@ long get_integer(const char *nptr)
  * 
  * 
  */
-void binary_fork_processes(int depth)
+void binary_fork_processes(int num_descendent_processes)
 {
-    if (depth == 0)
+    if (num_descendent_processes == 0)
     { /* Process is a leaf node, do processing on given pipe */
         /* INSERT LEAF NODE PROCESSING HERE */
         printf("I'm process: %d (leaf node), and my parent is: %d\n", getpid(), getppid());
@@ -33,6 +33,7 @@ void binary_fork_processes(int depth)
     }
 
     pid_t process;
+    int status;
 
     /* Fork first child process */
     process = fork();
@@ -43,21 +44,29 @@ void binary_fork_processes(int depth)
     }
     else if (process == 0)
     { /* Child process 1 */
-        binary_fork_processes(depth - 1);
+        binary_fork_processes(num_descendent_processes / 2);
         exit(0);
     }
+    
+    /* Calculate number of descendent processes left for right subbranch */
+    num_descendent_processes -= (num_descendent_processes / 2 + 1);
 
-    /* Fork second child process */
-    process = fork();
-    if (process < 0)
+    if (num_descendent_processes > 0)
     {
-        perror("fork");
-        exit(1);
-    }
-    else if (process == 0)
-    { /* Child process 2 */
-        binary_fork_processes(depth - 1);
-        exit(0);
+        /* Fork second child process */
+        process = fork();
+        if (process < 0)
+        {
+            perror("fork");
+            exit(1);
+        }
+        else if (process == 0)
+        { /* Child process 2 */
+            binary_fork_processes(num_descendent_processes - 1);
+            exit(0);
+        }
+
+        wait(&status);
     }
 
     /* Process is an internal node, do processing on retrieving information */
@@ -66,9 +75,5 @@ void binary_fork_processes(int depth)
     /* INSERT INTERNAL NODE PROCESSING HERE */
     /* Note: Possibly replace wait() with poll since pipes will be involved */
 
-    int status;
-    for (int i = 0; i < 2; ++i)
-    {
-        wait(&status);
-    }
+    wait(&status);
 }
