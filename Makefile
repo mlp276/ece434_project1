@@ -15,5 +15,8 @@ proc-common.o: proc-common.c proc-common.h
 process-file.o: process-file.c proc-common.h
 	$(CC) $(CFLAGS) -o process-file.o -c process-file.c $(LIBS)
 
+proc-compute.o: proc-compute.c proc-compute.h
+	$(CC) $(FLAGS) -o proc-compute.o -c proc-compute.c $(LIBS)
+
 clean:
 	rm -f process-file proc-common.o process-file.o

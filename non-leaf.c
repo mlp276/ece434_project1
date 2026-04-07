@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <poll.h>
-#include <time.h>
 #include "proc-common.h"
 
 // Create struct to store data to send/receive from pipes
@@ -107,7 +106,7 @@ void non_leaf() {
 
         if (i == num_children - 1)  // Assign any remainder to last segment if entire range not covered
             child_r = r;
-        
+
         // Create a struct pollfd for each child
         child_polls[i].fd = read_pfds[i][PIPE_READ_END];
         child_polls[i].events = POLLIN;

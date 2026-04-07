@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <time.h>
 #include <math.h>
 
 #define PIPE_READ_END 0
