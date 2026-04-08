@@ -43,6 +43,20 @@ int main(int argc, char *argv[])
 
     printf("L: %d, H: %d, PN: %d\n", L, H, PN);
 
+    /* Generating data */
+    srand(time(NULL));
+    int *a = malloc(L * sizeof(int));
+    for (int i = 0; i < L; i++)
+        a[i] = (rand() % 10000) + 1;
+    for (int i = 0; i < 150; i++)
+        a[rand() % L] = -(rand() % 100 + 1);
+    FILE *f = fopen("input.txt", "w");
+    fprintf(f, "%d\n", L);
+    for (int i = 0; i < L; i++)
+        fprintf(f, "%d\n", a[i]);
+    fclose(f);
+    free(a);
+
     /* OPENING THE INPUT FILE AND WRITING ITS DATA TO PIPE */
     FILE *file = fopen("input.txt", "r");
     if (file == NULL) return 1;
