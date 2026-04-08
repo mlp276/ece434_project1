@@ -1,5 +1,10 @@
 #include "proc-common.h"
 
+int child_read_pfds[NUM_CHILDREN][2];
+int child_write_pfds[NUM_CHILDREN][2];
+int parent_read_pfd[2];
+int parent_write_pfd[2];
+
 long get_integer(const char *nptr)
 {
     char *endptr;
@@ -23,57 +28,156 @@ long get_integer(const char *nptr)
  * 
  * 
  */
-void binary_fork_processes(int num_descendent_processes)
+void fork_processes(int num_processes)
 {
-    if (num_descendent_processes == 0)
+    /* CHECK IF PROCESS IS A LEAF NODE */
+
+    if (num_processes == 0)
     { /* Process is a leaf node, do processing on given pipe */
         /* INSERT LEAF NODE PROCESSING HERE */
-        printf("I'm process: %d (leaf node), and my parent is: %d\n", getpid(), getppid());
+        printf("Leaf node processing for process %d\n", getpid());
         exit(0);
     }
 
-    pid_t process;
-    int status;
-
-    /* Fork first child process */
-    process = fork();
-    if (process < 0)
+    /* Fork up to the max number of child processes */    
+    int num_children_to_fork = NUM_CHILDREN;
+    if (num_processes < num_children_to_fork) 
     {
-        perror("fork");
-        exit(1);
-    }
-    else if (process == 0)
-    { /* Child process 1 */
-        binary_fork_processes(num_descendent_processes / 2);
-        exit(0);
+        num_children_to_fork = num_processes;
     }
     
-    /* Calculate number of descendent processes left for right subbranch */
-    num_descendent_processes -= (num_descendent_processes / 2 + 1);
+    int num_processes_to_allocate_evenly = (num_processes - num_children_to_fork) / NUM_CHILDREN;
+    int num_processes_leftover = (num_processes - num_children_to_fork) % NUM_CHILDREN;
 
-    if (num_descendent_processes > 0)
+    pid_t process;
+    for (int n = 0; n < num_children_to_fork; ++n)
     {
-        /* Fork second child process */
+        /* INITIALIZE THE PIPES */
+
+        /* Initialize the read ends of the pipes */
+        if (pipe(child_read_pfds[n]) < 0)
+        {
+            perror("pipe");
+            exit(1);
+        }
+
+        /* Initialize the write ends of the pipes */
+        if (pipe(child_write_pfds[n]) < 0)
+        {
+            perror("pipe");
+            exit(1);
+        }
+
+        /* FORK THE CHILDREN */
+
         process = fork();
         if (process < 0)
         {
             perror("fork");
-            exit(1);
+            exit(1);  
         }
         else if (process == 0)
-        { /* Child process 2 */
-            binary_fork_processes(num_descendent_processes - 1);
+        { /* In the child process */
+            printf("Process %d created, parent is %d\n", getpid(), getppid());
+
+            /* Associate reading from parent with writing from parent to child */
+            parent_read_pfd[PIPE_READ_END] = child_write_pfds[n][PIPE_READ_END];
+            parent_read_pfd[PIPE_WRITE_END] = child_write_pfds[n][PIPE_WRITE_END];
+
+            /* Associate writing to parent with reading from child in parent */
+            parent_write_pfd[PIPE_READ_END] = child_read_pfds[n][PIPE_READ_END];
+            parent_write_pfd[PIPE_WRITE_END] = child_read_pfds[n][PIPE_WRITE_END];
+
+            int new_num_processes;
+            if (n == num_children_to_fork - 1)
+            { /* Last child process will get the leftover processes to allocate */
+                new_num_processes = num_processes_to_allocate_evenly + num_processes_leftover;
+            }
+            else
+            { /* Every other child process will get an equal number of processes */
+                new_num_processes = num_processes_to_allocate_evenly;
+            }
+
+            printf("Process %d will generate %d processes.\n", getpid(), new_num_processes);
+            fork_processes(new_num_processes);
             exit(0);
         }
-
-        wait(&status);
     }
 
-    /* Process is an internal node, do processing on retrieving information */
-    printf("I'm process: %d (internal node)\n", getpid());
+    /* EXECUTE NON-LEAF FUNCTIONALITIES */
 
-    /* INSERT INTERNAL NODE PROCESSING HERE */
-    /* Note: Possibly replace wait() with poll since pipes will be involved */
+    non_leaf();
+}
 
-    wait(&status);
+void non_leaf()
+{
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    /* Data to send to the parent */
+    int mx = 0;
+    int sum = 0;
+    double ave = 0;
+    int numel = 0;
+
+    struct pollfd* child_polls = malloc(NUM_CHILDREN * sizeof(struct pollfd));
+    struct data* child_data = malloc(NUM_CHILDREN * sizeof(struct data));
+    if (child_polls == NULL || child_data == NULL)
+    {
+        perror("malloc");
+        exit(1);
+    }
+
+    /* Create a struct pollfd for each pipe from child */
+    for (int n = 0; n < NUM_CHILDREN; n++)
+    {
+        child_polls[n].fd = child_read_pfds[n][PIPE_READ_END];
+        child_polls[n].events = POLLIN;
+    }
+
+    int finished_children = 0;
+    int timeout = 10000;
+
+    // Poll children until all children finish
+    while (finished_children < NUM_CHILDREN)
+    {
+        int num_polled = poll(child_polls, NUM_CHILDREN, timeout);
+        if (num_polled == -1)
+        {
+            perror("poll");
+            exit(1);
+        }
+
+        // Loop over children to determine which ones finished
+        for (int n = 0; n < NUM_CHILDREN; n++)
+        {
+            if (child_polls[n].revents & POLLIN)
+            {
+                read(child_polls[n].fd, &child_data[n], sizeof(struct data));
+                close(child_polls[n].fd);
+                finished_children += 1;
+            }
+        }
+    }
+
+    /* Aggregate results from all the children */
+    for (int i = 0; i < NUM_CHILDREN; i++) {
+        struct data d = child_data[i];
+        mx = fmax(mx, d.mx);
+        sum += d.sum;
+        numel += d.numel;
+    }
+    ave = sum / numel;
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    double elapsed = end.tv_sec - start.tv_sec;
+
+    /* Send data to the parent */
+    /* MAKE SURE AT ROOT IT DOESNT WRITE */
+    struct data parent_data = { mx, sum, ave, numel, elapsed };
+    if (write(parent_write_pfd[PIPE_WRITE_END], &parent_data, sizeof(parent_data)) == -1)
+    {
+        perror("write");
+        exit(1);
+    }
 }

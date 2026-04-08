@@ -1,9 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <poll.h>
-#include <time.h>
 #include "proc-common.h"
 
 // Create struct to store data to send/receive from pipes
@@ -44,24 +38,30 @@ void read_data(int fd, struct data *child_data) {
     }
 }
 
-void write_data(int fd, struct data *parent_data) {
-    if (write(fd, &parent_data->mx, sizeof(parent_data->mx)) == -1) {
+void write_data(int fd, struct data *parent_data)
+{
+    if (write(fd, &parent_data->mx, sizeof(parent_data->mx)) == -1)
+    {
         perror("write");
         exit(1);
     }
-    if (write(fd, &parent_data->sum, sizeof(parent_data->sum)) == -1) {
+    if (write(fd, &parent_data->sum, sizeof(parent_data->sum)) == -1)
+    {
         perror("write");
         exit(1);
     }
-    if (write(fd, &parent_data->ave, sizeof(parent_data->ave)) == -1) {
+    if (write(fd, &parent_data->ave, sizeof(parent_data->ave)) == -1)
+    {
         perror("write");
         exit(1);
     }
-    if (write(fd, &parent_data->numel, sizeof(parent_data->numel)) == -1) {
+    if (write(fd, &parent_data->numel, sizeof(parent_data->numel)) == -1)
+    {
         perror("write");
         exit(1);
     }
-    if (write(fd, &parent_data->elapsed, sizeof(parent_data->elapsed)) == -1) {
+    if (write(fd, &parent_data->elapsed, sizeof(parent_data->elapsed)) == -1)
+    {
         perror("write");
         exit(1);
     }
@@ -77,12 +77,11 @@ void non_leaf() {
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
-    // Everything here should already be initialized
-    int l, r;
-    int num_children;
-    int read_pfds[num_children][2];
-    int write_pfds[num_children][2];
-    int parent_pfd[2];
+    // // Everything here should already be initialized
+    // int l, r;
+    // int read_pfds[NUM_CHILDREN][2];
+    // int write_pfds[NUM_CHILDREN][2];
+    // int parent_pfd[2];
 
     // Data to send to parent
     int mx = 0; // max
@@ -91,21 +90,22 @@ void non_leaf() {
     int numel = 0;
 
     // Other variables
-    struct pollfd *child_polls = malloc(num_children*sizeof(struct pollfd));    // Used to poll read ends of all children
-    struct data *child_data = malloc(num_children*sizeof(struct data)); // Array of child data
+    struct pollfd *child_polls = malloc(NUM_CHILDREN * sizeof(struct pollfd));    // Used to poll read ends of all children
+    struct data *child_data = malloc(NUM_CHILDREN * sizeof(struct data)); // Array of child data
     if (child_polls == NULL || child_data == NULL) {
         perror("malloc");
         exit(1);
     }
-    int child_seg_length = (r - l + 1)/num_children; // Evenly split range [l, r] across children
+
+    int child_seg_length = (r - l + 1)/NUM_CHILDREN; // Evenly split range [l, r] across children
 
     // Loop over children
-    for (int i = 0; i < num_children; i++) {
+    for (int i = 0; i < NUM_CHILDREN; i++) {
         // Assign segment to each child
         int child_l = l + i*child_seg_length;
         int child_r = l + (i + 1)*child_seg_length - 1;
 
-        if (i == num_children - 1)  // Assign any remainder to last segment if entire range not covered
+        if (i == NUM_CHILDREN - 1)  // Assign any remainder to last segment if entire range not covered
             child_r = r;
         
         // Create a struct pollfd for each child
@@ -117,15 +117,15 @@ void non_leaf() {
     int timeout = 10000;    // 10 second timeout
 
     // Poll children until all children finish
-    while (finished_children < num_children) {
-        int num_polled = poll(&child_polls, num_children, timeout);
+    while (finished_children < NUM_CHILDREN) {
+        int num_polled = poll(&child_polls, NUM_CHILDREN, timeout);
         if (num_polled == -1) { // Poll failed
             perror("poll");
             exit(1);
         }
 
         // Loop over children to determine which ones finished
-        for (int i = 0; i < num_children; i++) {
+        for (int i = 0; i < NUM_CHILDREN; i++) {
             if (child_polls[i].revents & POLLIN) {  // Child has sent data
                 read_data(child_polls[i].fd, &child_data[i]);
                 close(child_polls[i].fd);
@@ -135,7 +135,7 @@ void non_leaf() {
     }
 
     // Aggregate results
-    for (int i = 0; i < num_children; i++) {
+    for (int i = 0; i < NUM_CHILDREN; i++) {
         struct data d = child_data[i];
         mx = max(mx, d.mx);
         sum += d.sum;
@@ -147,5 +147,9 @@ void non_leaf() {
     clock_gettime(CLOCK_MONOTONIC, &end);
     double elapsed = end.tv_sec - start.tv_sec; // Maybe include nanosecond precision
     struct data parent_data = {mx, sum, ave, numel, elapsed};
-    write_data(parent_pfd[PIPE_WRITE_END], &parent_data);
+    if (write(parent_pfd[PIPE_WRITE_END], &parent_data, sizeof(parent_data)) == -1)
+    {
+        perror("write");
+        exit(1);
+    }
 }

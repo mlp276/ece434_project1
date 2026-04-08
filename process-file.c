@@ -68,15 +68,8 @@ int main(int argc, char *argv[])
 
     /* FORK CHILDREN TO ALLOCATE RESOURCES */
 
-    // int depth;
-    // if (PN == 1) depth = 1;
-    // else depth = (int) ceil(log2(PN));
-    // int max_leaf_nodes = (int) ceil(pow(2, depth));
-
-    // printf("depth: %d, max_leaf_nodes: %d\n", depth, max_leaf_nodes);
-
-    binary_fork_processes(PN);
-    printf("Process: %d is also the root node\n", getpid());
+    printf("Process: %d is the root node\n", getpid());
+    fork_processes(PN);
 
     return 0;
 }
