@@ -30,6 +30,8 @@ void process_subarray(int *arr, int l, int r, int pipe_fd_write, int id)
         {
             result.hidden_positions[result.hidden_found] = i;
             result.hidden_found++;
+            printf("ECE 434 Sp26: I am process: %d with return arg %d. I found the hidden key in position A[%d]\n",
+                    getpid(), id, i);
         }
     }
 
@@ -50,9 +52,9 @@ void process_subarray(int *arr, int l, int r, int pipe_fd_write, int id)
     close(pipe_fd_write);
 
     // Print debug
-    printf("ECE 434 Sp26: I’m process %d and my parent is %d. "
-           "Processed [%d, %d], found %d hidden keys.\n",
-           getpid(), getppid(), l, r, result.hidden_found);
+    printf("ECE 434 Sp26: I’m process %d and with return arg %d. "
+           "Processed [%d, %d], found a total of %d hidden keys.\n",
+           getpid(), id, l, r, result.hidden_found);
 
     // Sleep so tree is visible (assignment requirement)
     sleep(1);
