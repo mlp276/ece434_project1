@@ -19,4 +19,4 @@ process-file.o: process-file.c proc-common.h
 	$(CC) $(CFLAGS) -o process-file.o -c process-file.c $(LIBS)
 
 clean:
-	rm -f process-file proc-common.o process-file.o
+	rm -f process-file proc-common.o process-file.o proc-compute.o
