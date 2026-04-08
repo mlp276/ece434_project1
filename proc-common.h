@@ -31,7 +31,8 @@ struct data {
 };
 
 long get_integer(const char *nptr);
-void fork_processes(int num_processes, int L, int n, int* arr);
-void non_leaf(int num_children_to_fork, int n);
+void fork_processes(int num_processes, int L, int n, int* arr, int id);
+void non_leaf(int num_children_to_fork, int n, int id);
+void explain_wait_status(pid_t pid, int status);
 
 #endif

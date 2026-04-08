@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     /* FORK CHILDREN TO ALLOCATE RESOURCES */
 
     printf("Process: %d is the root node\n", getpid());
-    fork_processes(PN, L, -1, arr);
+    fork_processes(PN, L, -1, arr, 0);
 
     return 0;
 }

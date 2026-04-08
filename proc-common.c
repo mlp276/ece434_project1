@@ -5,6 +5,21 @@ int child_write_pfds[NUM_CHILDREN][2];
 int parent_read_pfd[2];
 int parent_write_pfd[2];
 
+void explain_wait_status(pid_t pid, int status) {
+  if (WIFEXITED(status)) {
+    fprintf(stderr,"Child with PID = %ld exited naturally, status = %d\n", (long)pid, WEXITSTATUS(status));
+  }
+  else if (WIFSIGNALED(status)) {
+    fprintf(stderr,"Child with PID = %ld killed by signal: %d\n", (long)pid, WTERMSIG(status));
+  }
+  else if (WIFSTOPPED(status)) {
+    fprintf(stderr,"Child with PID = %ld stopped by signal %d\n",(long)pid,WSTOPSIG(status));
+  }
+  else {
+    fprintf(stderr, "%s: Internal error: Unhandled case, PID = %ld, status = %d\n", __func__, (long)pid, status);
+  }
+}
+
 long get_integer(const char *nptr)
 {
     char *endptr;
@@ -23,7 +38,7 @@ long get_integer(const char *nptr)
     return res;
 }
 
-void fork_processes(int num_processes, int L, int n, int *arr)
+void fork_processes(int num_processes, int L, int n, int *arr, int id)
 {
     /* CHECK IF PROCESS IS A LEAF NODE */
     int l = 0, r = L - 1;
@@ -37,8 +52,7 @@ void fork_processes(int num_processes, int L, int n, int *arr)
     if (num_processes == 0)
     { /* Process is a leaf node, do processing on given pipe */
         // printf("Leaf node processing for process %d\n", getpid());
-        process_subarray(arr, l, r, parent_write_pfd[PIPE_WRITE_END], 0);
-        exit(0);
+        process_subarray(arr, l, r, parent_write_pfd[PIPE_WRITE_END], id);
     }
 
     /* Fork up to the max number of child processes */    
@@ -107,8 +121,9 @@ void fork_processes(int num_processes, int L, int n, int *arr)
                 new_num_processes = num_processes_to_allocate_evenly;
             }
 
-            // // printf("Process %d will generate %d processes.\n", getpid(), new_num_processes);
-            fork_processes(new_num_processes, L, n, arr);
+            int new_id = NUM_CHILDREN * id + n;
+            printf("ECE 434 Sp26: I'm process %d with return arg %d and my parent is %d.\n", getpid(), new_id, getppid());
+            fork_processes(new_num_processes, L, n, arr, new_id);
             exit(0);
         }
     }
@@ -116,10 +131,10 @@ void fork_processes(int num_processes, int L, int n, int *arr)
     /* EXECUTE NON-LEAF FUNCTIONALITIES */
 
     // printf("process %d, n = %d\n", getpid(), n);
-    non_leaf(num_children_to_fork, n);
+    non_leaf(num_children_to_fork, n, id);
 }
 
-void non_leaf(int num_children, int n)
+void non_leaf(int num_children, int n, int id)
 {
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -174,6 +189,14 @@ void non_leaf(int num_children, int n)
         }
     }
 
+    pid_t pid;
+    int status;
+    for (int i = 0; i < num_children; ++i)
+    {
+        pid = waitpid(-1, &status, 0);
+        explain_wait_status(pid, status);
+    }
+
     /* Aggregate results from all the children */
     for (int i = 0; i < num_children; i++) {
         struct data d = child_data[i];
@@ -193,7 +216,8 @@ void non_leaf(int num_children, int n)
     /* Check if it is the root node */
     if (n < 0)
     {
-        printf("mx = %d, sum = %d, numel = %d, ave = %f\n", parent_data.mx, parent_data.sum, parent_data.numel, parent_data.ave);
+        /* FINAL RESULTS PRINTED */
+        printf("max = %d, sum = %d, count = %d, average = %f\n", parent_data.mx, parent_data.sum, parent_data.numel, parent_data.ave);
         return;
     }
     if (write(parent_write_pfd[PIPE_WRITE_END], &parent_data, sizeof(parent_data)) == -1)
@@ -205,4 +229,5 @@ void non_leaf(int num_children, int n)
 
     // printf("process %d finished\n", getpid());
     // // printf("Non-leaf process %d finished.\n", getpid());
+    exit(id);
 }
