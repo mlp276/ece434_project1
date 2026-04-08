@@ -15,6 +15,8 @@
 #include <poll.h>
 #include <time.h>
 
+#include "proc-compute.h"
+
 #define PIPE_READ_END 0
 #define PIPE_WRITE_END 1
 #define BUFFER_SIZE 1024
@@ -29,7 +31,7 @@ struct data {
 };
 
 long get_integer(const char *nptr);
-void fork_processes(int num_processes, int L, int n);
-void non_leaf();
+void fork_processes(int num_processes, int L, int n, int* arr);
+void non_leaf(int num_children_to_fork, int n);
 
 #endif

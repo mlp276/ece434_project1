@@ -17,13 +17,13 @@ long get_integer(const char *nptr)
     }
     else if (endptr == nptr)
     {
-        fprintf(stderr, "%s must be an integer.\n", nptr);
+        // printf(stderr, "%s must be an integer.\n", nptr);
         exit(1);
     }
     return res;
 }
 
-void fork_processes(int num_processes, int L, int n)
+void fork_processes(int num_processes, int L, int n, int *arr)
 {
     /* CHECK IF PROCESS IS A LEAF NODE */
     int l = 0, r = L - 1;
@@ -32,12 +32,12 @@ void fork_processes(int num_processes, int L, int n)
         read(parent_read_pfd[PIPE_READ_END], &l, sizeof(l));
         read(parent_read_pfd[PIPE_READ_END], &r, sizeof(r));
     }
-    printf("In process %d, l = %d, r = %d\n", getpid(), l, r);
+    // printf("In process %d, l = %d, r = %d\n", getpid(), l, r);
 
     if (num_processes == 0)
     { /* Process is a leaf node, do processing on given pipe */
-        /* INSERT LEAF NODE PROCESSING HERE */
-        printf("Leaf node processing for process %d\n", getpid());
+        // printf("Leaf node processing for process %d\n", getpid());
+        process_subarray(arr, l, r, parent_write_pfd[PIPE_WRITE_END], 0);
         exit(0);
     }
 
@@ -107,18 +107,19 @@ void fork_processes(int num_processes, int L, int n)
                 new_num_processes = num_processes_to_allocate_evenly;
             }
 
-            // printf("Process %d will generate %d processes.\n", getpid(), new_num_processes);
-            fork_processes(new_num_processes, L, n);
+            // // printf("Process %d will generate %d processes.\n", getpid(), new_num_processes);
+            fork_processes(new_num_processes, L, n, arr);
             exit(0);
         }
     }
 
     /* EXECUTE NON-LEAF FUNCTIONALITIES */
 
-    // non_leaf();
+    // printf("process %d, n = %d\n", getpid(), n);
+    non_leaf(num_children_to_fork, n);
 }
 
-void non_leaf()
+void non_leaf(int num_children, int n)
 {
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -129,8 +130,8 @@ void non_leaf()
     double ave = 0;
     int numel = 0;
 
-    struct pollfd* child_polls = malloc(NUM_CHILDREN * sizeof(struct pollfd));
-    struct data* child_data = malloc(NUM_CHILDREN * sizeof(struct data));
+    struct pollfd* child_polls = malloc(num_children * sizeof(struct pollfd));
+    struct data* child_data = malloc(num_children * sizeof(struct data));
     if (child_polls == NULL || child_data == NULL)
     {
         perror("malloc");
@@ -138,19 +139,22 @@ void non_leaf()
     }
 
     /* Create a struct pollfd for each pipe from child */
-    for (int n = 0; n < NUM_CHILDREN; n++)
+    for (int n = 0; n < num_children; n++)
     {
         child_polls[n].fd = child_read_pfds[n][PIPE_READ_END];
         child_polls[n].events = POLLIN;
     }
 
     int finished_children = 0;
-    int timeout = 10000;
+    int timeout = 1000;
+
+    // printf("process %d has %d children\n", getpid(), num_children);
 
     // Poll children until all children finish
-    while (finished_children < NUM_CHILDREN)
+    while (finished_children < num_children)
     {
-        int num_polled = poll(child_polls, NUM_CHILDREN, timeout);
+        int num_polled = poll(child_polls, num_children, timeout);
+        // printf("polled in process %d\n", getpid());
         if (num_polled == -1)
         {
             perror("poll");
@@ -158,11 +162,12 @@ void non_leaf()
         }
 
         // Loop over children to determine which ones finished
-        for (int n = 0; n < NUM_CHILDREN; n++)
+        for (int n = 0; n < num_children; n++)
         {
             if (child_polls[n].revents & POLLIN)
             {
                 read(child_polls[n].fd, &child_data[n], sizeof(struct data));
+                // printf("Retrieved data in process %d\n", getpid());
                 close(child_polls[n].fd);
                 finished_children += 1;
             }
@@ -170,7 +175,7 @@ void non_leaf()
     }
 
     /* Aggregate results from all the children */
-    for (int i = 0; i < NUM_CHILDREN; i++) {
+    for (int i = 0; i < num_children; i++) {
         struct data d = child_data[i];
         mx = fmax(mx, d.mx);
         sum += d.sum;
@@ -178,15 +183,26 @@ void non_leaf()
     }
     ave = sum / numel;
 
+
     clock_gettime(CLOCK_MONOTONIC, &end);
     double elapsed = end.tv_sec - start.tv_sec;
 
     /* Send data to the parent */
-    /* MAKE SURE AT ROOT IT DOESNT WRITE */
     struct data parent_data = { mx, sum, ave, numel, elapsed };
+
+    /* Check if it is the root node */
+    if (n < 0)
+    {
+        printf("mx = %d, sum = %d, numel = %d, ave = %f\n", parent_data.mx, parent_data.sum, parent_data.numel, parent_data.ave);
+        return;
+    }
     if (write(parent_write_pfd[PIPE_WRITE_END], &parent_data, sizeof(parent_data)) == -1)
     {
         perror("write");
         exit(1);
     }
+    // printf("data sent in process %d\n", getpid());
+
+    // printf("process %d finished\n", getpid());
+    // // printf("Non-leaf process %d finished.\n", getpid());
 }

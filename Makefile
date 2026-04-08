@@ -6,11 +6,14 @@ LIBS=-lm
 
 all: process-file
 
-process-file: process-file.o proc-common.o
-	$(CC) $(CFLAGS) -o process-file process-file.o proc-common.o $(LIBS)
+process-file: process-file.o proc-common.o proc-compute.o
+	$(CC) $(CFLAGS) -o process-file process-file.o proc-common.o proc-compute.o $(LIBS)
 
 proc-common.o: proc-common.c proc-common.h
 	$(CC) $(CFLAGS) -o proc-common.o -c proc-common.c $(LIBS)
+
+proc-compute.o: proc-compute.c proc-compute.h
+	$(CC) $(CFLAGS) -o proc-compute.o -c proc-compute.c $(LIBS)
 
 process-file.o: process-file.c proc-common.h
 	$(CC) $(CFLAGS) -o process-file.o -c process-file.c $(LIBS)
