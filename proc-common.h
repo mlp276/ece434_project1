@@ -28,6 +28,10 @@ struct data {
     double ave;
     int numel;
     double elapsed;
+    int bytes;
+    pid_t slowest_child;
+    double slowest_time;
+    pid_t pid;
 };
 
 long get_integer(const char *nptr);

@@ -54,8 +54,13 @@ int main(int argc, char *argv[])
 
     /* FORK CHILDREN TO ALLOCATE RESOURCES */
 
+    struct timespec start, end;
     printf("Process: %d is the root node\n", getpid());
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
     fork_processes(PN, L, -1, arr, 0);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    printf("Total runtime: %f s\n", end.tv_sec - start.tv_sec + (end.tv_nsec - start.tv_nsec)/1e9);
 
     return 0;
 }

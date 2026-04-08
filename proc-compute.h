@@ -12,6 +12,8 @@ typedef struct {
     double ave;                 // average (computed locally)
     int count;                  // number of elements processed
     double elapsed;             // time taken (seconds)
+    int bytes;                  // IPC bytes communicated
+    pid_t pid;                  // PID
 
     int hidden_found;           // number of hidden keys found
     int hidden_positions[MAX_HIDDEN]; // indices of hidden keys

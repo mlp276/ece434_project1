@@ -12,6 +12,8 @@ void process_subarray(int *arr, int l, int r, int pipe_fd_write, int id)
     result.sum = 0;
     result.count = 0;
     result.hidden_found = 0;
+    result.bytes = 2;       // received l, r from parent
+    result.pid = getpid();
 
     for (int i = l; i <= r; i++)
     {
@@ -37,7 +39,7 @@ void process_subarray(int *arr, int l, int r, int pipe_fd_write, int id)
 
     //finish timing
     clock_gettime(CLOCK_MONOTONIC, &end);
-    result.elapsed = end.tv_sec - start.tv_sec; // Maybe include nanosecond precision
+    result.elapsed = end.tv_sec - start.tv_sec + (end.tv_nsec - start.tv_nsec)/1e9; 
 
     // printf("Sending max = %d, sum = %d, count = %d, ave = %f\n", result.max, result.sum, result.count, result.ave);
 

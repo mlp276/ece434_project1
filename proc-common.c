@@ -144,6 +144,10 @@ void non_leaf(int num_children, int n, int id)
     int sum = 0;
     double ave = 0;
     int numel = 0;
+    int bytes = 2*sizeof(int);  // already sent l, r to child
+    pid_t slowest_child = -1;
+    double slowest_time = 0;
+    pid_t pid = getpid();
 
     struct pollfd* child_polls = malloc(num_children * sizeof(struct pollfd));
     struct data* child_data = malloc(num_children * sizeof(struct data));
@@ -181,20 +185,21 @@ void non_leaf(int num_children, int n, int id)
         {
             if (child_polls[n].revents & POLLIN)
             {
-                read(child_polls[n].fd, &child_data[n], sizeof(struct data));
+                int b = read(child_polls[n].fd, &child_data[n], sizeof(struct data));
                 // printf("Retrieved data in process %d\n", getpid());
+                bytes += b;
                 close(child_polls[n].fd);
                 finished_children += 1;
             }
         }
     }
 
-    pid_t pid;
+    pid_t cpid;
     int status;
     for (int i = 0; i < num_children; ++i)
     {
-        pid = waitpid(-1, &status, 0);
-        explain_wait_status(pid, status);
+        cpid = waitpid(-1, &status, 0);
+        explain_wait_status(cpid, status);
     }
 
     /* Aggregate results from all the children */
@@ -203,21 +208,27 @@ void non_leaf(int num_children, int n, int id)
         mx = fmax(mx, d.mx);
         sum += d.sum;
         numel += d.numel;
+        bytes += d.bytes;
+        if (d.elapsed > slowest_time) {
+            slowest_time = d.elapsed;
+            slowest_child = d.pid;
+        }
     }
     ave = sum / numel;
 
-
     clock_gettime(CLOCK_MONOTONIC, &end);
-    double elapsed = end.tv_sec - start.tv_sec;
+    double elapsed = end.tv_sec - start.tv_sec + (end.tv_nsec - start.tv_nsec)/1e9;
 
     /* Send data to the parent */
-    struct data parent_data = { mx, sum, ave, numel, elapsed };
+    struct data parent_data = { mx, sum, ave, numel, elapsed, bytes, slowest_child, slowest_time, pid };
 
     /* Check if it is the root node */
     if (n < 0)
     {
         /* FINAL RESULTS PRINTED */
         printf("max = %d, sum = %d, count = %d, average = %f\n", parent_data.mx, parent_data.sum, parent_data.numel, parent_data.ave);
+        printf("IPC volume = %d bytes\n", parent_data.bytes);
+        printf("Slowest child = %d with time = %f sec\n", parent_data.slowest_child, parent_data.slowest_time);
         return;
     }
     if (write(parent_write_pfd[PIPE_WRITE_END], &parent_data, sizeof(parent_data)) == -1)
