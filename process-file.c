@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
     /* FORK CHILDREN TO ALLOCATE RESOURCES */
 
     printf("Process: %d is the root node\n", getpid());
-    fork_processes(PN);
+    fork_processes(PN, L, -1);
 
     return 0;
 }

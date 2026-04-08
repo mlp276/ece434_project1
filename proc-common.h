@@ -29,7 +29,7 @@ struct data {
 };
 
 long get_integer(const char *nptr);
-void fork_processes(int num_processes);
+void fork_processes(int num_processes, int L, int n);
 void non_leaf();
 
 #endif
