@@ -1,10 +1,11 @@
-#include "proc-common.h"
+#include "process-file-lib.h"
 
 int main(int argc, char *argv[])
 {
     /* GETTING PROGRAM ARGUMENTS */
     
     char *program_name = argv[0]; // The name of the program
+    
     if (argc != 4)
     {
         /* Return error, must provide 3 arguments */
@@ -16,17 +17,17 @@ int main(int argc, char *argv[])
     int H;  // Number of hidden key integers in the input file
     int PN; // Number of children processes to fork
 
-    L  = (int) get_integer(argv[1]);
-    H  = (int) get_integer(argv[2]);
-    PN = (int) get_integer(argv[3]);
+    /* Gather arguments, ensuring they are integers */
+    L = get_integer(argv[1]);
 
-    // if (L < 12000)
-    // {
-    //     /* Return error, must be >= 12000 */
-    //     fprintf(stderr, "Improper L argument: must be >= 12000\n");
-    //     exit(1);
-    // }
+    if (L < 12000)
+    {
+        /* Return error, must be >= 12000 */
+        fprintf(stderr, "Improper L argument: must be >= 12000\n");
+        exit(1);
+    }
     
+    H = get_integer(argv[2]);
     if (H < 150)
     {
         /* Return error, must be >= 150 */
@@ -34,6 +35,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    PN = get_integer(argv[3]);
     if (PN < 1)
     {
         /* Return error, must be >= 1 */
@@ -41,40 +43,38 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    printf("L: %d, H: %d, PN: %d\n", L, H, PN);
+    /* OPENING THE INPUT FILE AND WRITING ITS DATA TO ARRAY */
 
-    /* Generating data */
-    srand(time(NULL));
-    int *a = malloc(L * sizeof(int));
-    for (int i = 0; i < L; i++)
-        a[i] = (rand() % 10000) + 1;
-    for (int i = 0; i < 150; i++)
-        a[rand() % L] = -(rand() % 100 + 1);
-    FILE *f = fopen("input.txt", "w");
-    fprintf(f, "%d\n", L);
-    for (int i = 0; i < L; i++)
-        fprintf(f, "%d\n", a[i]);
-    fclose(f);
-    free(a);
-
-    /* OPENING THE INPUT FILE AND WRITING ITS DATA TO PIPE */
     FILE *file = fopen("input.txt", "r");
-    if (file == NULL) return 1;
+    if (file == NULL)
+    {
+        /* Return error */
+        perror("fopen");
+        exit(1);
+    }
+
     int arr[L];
     int i = 0;
 
-    // fscanf returns the number of items successfully read
+    /* fscanf() returns the number of items successfully read */
     while (i < L && fscanf(file, "%d", &arr[i]) == 1) i++;
 
     /* FORK CHILDREN TO ALLOCATE RESOURCES */
+    
+    struct timespec start, end; // Calculate total time of the program
+    clock_gettime(CLOCK_MONOTONIC, &start); // Start of timer
+    
+    /* Start forking processes from the root node */
+    fork_processes(PN, arr, L, getpid());
 
-    struct timespec start, end;
-    printf("Process: %d is the root node\n", getpid());
+    clock_gettime(CLOCK_MONOTONIC, &end); // End of timer
 
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    fork_processes(PN, L, -1, arr, 0);
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    printf("Total runtime: %f s\n", end.tv_sec - start.tv_sec + (end.tv_nsec - start.tv_nsec)/1e9);
+    int elapsed = get_nanoseconds_diff(start, end);
+    printf("Total runtime: %.2f sec\n", (double)elapsed / 1e9);
+
+    /* END OF THE PROGRAM */
+
+    fclose(file);
 
     return 0;
 }
