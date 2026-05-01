@@ -1,3 +1,7 @@
+input.txt
+output.txt
+process-file
+
 # Compiled Object files
 *.o
 *.ko
