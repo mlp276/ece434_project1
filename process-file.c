@@ -65,12 +65,13 @@ int main(int argc, char *argv[])
     clock_gettime(CLOCK_MONOTONIC, &start); // Start of timer
     
     /* Start forking processes from the root node */
-    fork_processes(PN, arr, L, getpid());
+    int root_id = 1;
+    fork_processes(PN, arr, L, root_id);
 
     clock_gettime(CLOCK_MONOTONIC, &end); // End of timer
 
     int elapsed = get_nanoseconds_diff(start, end);
-    printf("Total runtime: %.2f sec\n", (double)elapsed / 1e9);
+    printf("Total runtime: %.4f sec\n", (double)elapsed / 1e9);
 
     /* END OF THE PROGRAM */
 

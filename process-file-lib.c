@@ -9,8 +9,6 @@ int is_root = 1; // Checks if this process is the root node
 int hidden_found; // The number of hidden keys found
 int hidden_positions[MAX_HIDDEN_KEYS]; // The indices of the hidden keys
 
-int process_ids[MAX_TOTAL_PROCESSES]; // The unique IDS of each process
-
 /* Returns the difference of nanoseconds between the start and the end */
 int get_nanoseconds_diff(struct timespec start, struct timespec end)
 {
