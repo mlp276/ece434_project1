@@ -291,6 +291,9 @@ void non_leaf(int num_children, int id)
         exit(1);
     }
 
+    /* Pause self and await parent to decide fate */
+    raise(SIGTSTP);
+
     /* Exit with its unique ID */
     exit(id);
 }
@@ -361,6 +364,9 @@ void leaf(int *arr, int l, int r, int fd, int id)
 
     /* Sleep so tree is visible (assignment requirement) */
     sleep(1);
+
+    /* Pause self and await parent to decide fate */
+    raise(SIGTSTP);
 
     /* Exit with its unique ID */
     exit(id);

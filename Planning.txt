@@ -1,0 +1,40 @@
+leaf() and nonleaf() should raise SIGTSTP right before exiting
+
+At start of non-leaf:
+- Register signal handler for SIGUSR1, SIGINT using sigaction (gets registered for leaves as well)
+
+How does child know which fate parent gave it?
+- ??
+
+When does parent make decisions for its children?
+- After receiving all children's data and before sending its own data to grandparent
+
+Rule 1:
+- Parent
+    - Delivers SIGCONT
+- Child
+    - Sleeps 100
+    - exit(return arg)
+
+Rule 2:
+- Parent
+    - Delivers SIGCONT
+    - Delivers SIGUSR1 with secret number using sigqueue()
+- Child
+    - As soon as it is continued, registers signal handler for SIGUSR1 using sigaction
+    - Receives SIGUSR1
+    - In the handler for SIGUSR1: raises signal with signum secret number
+    - Then child enters handler for second signal? How do we write a handler for second signal?
+    - Terminates self (probably with exit())
+
+Rule 3:
+- Parent
+    - Delivers SIGCONT
+    - Sleeps 10 seconds
+    - Delivers SIGINT
+- Child
+    - Recives SIGINT
+    - Handler for SIGINT: either registered to function that prints pid/ppid (experiment 1), or registerd to SIG_IGN (experiment 2)
+
+After decision rule for each child, parent delivers SIGQUIT to all children
+
