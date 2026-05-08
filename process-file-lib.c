@@ -334,6 +334,7 @@ void non_leaf(int num_children, int id)
 
     /* MAKE DECISIONS FOR ALL CHILDREN BASED ON HIDDEN NODE COUNT */
 
+    sleep(2); // Sleep to let all children reach the point of waiting for the parent to decide their fate
     for (int n = 0; n < num_children; ++n) {
         struct data child_data = child_datas[n];
         pid_t cpid = child_data.pid;

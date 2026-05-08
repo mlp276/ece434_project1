@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     }
 
     /* GENERATE RANDOM ARRAY */
-    
+
     generate_random_array(L, H);
 
     /* OPENING THE INPUT FILE AND WRITING ITS DATA TO ARRAY */
@@ -66,6 +66,8 @@ int main(int argc, char *argv[])
 
     /* fscanf() returns the number of items successfully read */
     while (i < L && fscanf(file, "%d", &arr[i]) == 1) i++;
+
+    printf("ECE 434 Sp26: Main process PID = %d\n", getpid());
 
     /* FORK CHILDREN TO ALLOCATE RESOURCES */
     
