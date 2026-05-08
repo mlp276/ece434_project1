@@ -43,6 +43,10 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    /* GENERATE RANDOM ARRAY */
+    
+    generate_random_array(L, H);
+
     /* OPENING THE INPUT FILE AND WRITING ITS DATA TO ARRAY */
 
     FILE *file = fopen("input.txt", "r");
@@ -53,7 +57,11 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    int arr[L];
+    int *arr = malloc(L * sizeof(int));
+    if (arr == NULL)    {
+        perror("malloc");
+        exit(1);
+    }
     int i = 0;
 
     /* fscanf() returns the number of items successfully read */

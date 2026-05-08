@@ -24,6 +24,8 @@
 #define MAX_HIDDEN_KEYS 150
 #define MAX_TOTAL_PROCESSES 50
 
+#define SIGINT_EXPERIMENT 1
+
 /* The data to send from the non-leaf node to the parent process */
 struct data
 {
@@ -36,10 +38,12 @@ struct data
     int bytes;           // The number of bytes transferred to other processes through pipes
     pid_t slowest_child; // The PID of the slowest child process
     int slowest_time;    // The time (in ns) of the slowest child process
+    int num_hidden_nodes; // The number of hidden nodes found by this process
 };
 
 int get_nanoseconds_diff(struct timespec start, struct timespec end);
 int get_integer(const char *nptr);
+void generate_random_array(int L, int H);
 
 void fork_processes(int num_desc_processes, int *arr, int L, int id);
 void non_leaf(int num_children_to_fork, int id);

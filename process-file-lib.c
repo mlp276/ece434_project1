@@ -5,6 +5,7 @@ int child_write_pfds[MAX_CHILD_PROCESSES][2]; // The pipe of data from this proc
 int parent_read_pfd[2]; // The pipe of data from the parent process to this process
 int parent_write_pfd[2]; // The pipe of data from this process to the parent
 int is_root = 1; // Checks if this process is the root node
+int exit_arg = -1; // The unique ID assigned to this process - to be modified when forking
 
 int hidden_found; // The number of hidden keys found
 int hidden_positions[MAX_HIDDEN_KEYS]; // The indices of the hidden keys
@@ -34,6 +35,58 @@ int get_integer(const char *nptr)
     return res;
 }
 
+
+/* Generate a random array of integers */
+void generate_random_array(int L, int H)
+{
+    srand(time(NULL));
+    int *a = malloc(L * sizeof(int));
+    for (int i = 0; i < L; i++)
+        a[i] = (rand() % 10000) + 1;
+    for (int i = 0; i < H; i++)
+        a[rand() % L] = -(rand() % 100 + 1);
+    FILE *f = fopen("input.txt", "w");
+    fprintf(f, "%d\n", L);
+    for (int i = 0; i < L; i++)
+        fprintf(f, "%d\n", a[i]);
+    fclose(f);
+    free(a);
+}
+
+/* Handler for the secret number signal */
+void secret_number_handler(int signum) {
+    printf("ECE 434 Sp26: I am process %d with return arg %d. I received secret number signal %d.\n", getpid(), exit_arg, signum);
+    exit(exit_arg);
+}
+
+/* Handler for SIGUSR1*/
+void siguser1_handler(int signum, siginfo_t *info, void *ucontext) {
+    // Get secret number from payload
+    int secret_number = info->si_value.sival_int;
+
+    // Register signal handler for signal secret_number
+    struct sigaction sa_sigsecret;
+    sa_sigsecret.sa_handler = secret_number_handler;
+    sigaction(SIGUSR1, &sa_sigsecret, NULL);
+
+    // Raise signal secret_number
+    raise(secret_number);
+}
+
+/* Handler for SIGINT (experiment 1)*/
+void sigint_handler(int signum) {
+    printf("ECE 434 Sp26: I am process %d with parent process %d and return arg %d. I received SIGINT signal.\n", getpid(), getppid(), exit_arg);
+}
+
+/* Function that a child calls to let its parent decide its fate after sending its data */
+void let_parent_decide_fate() {
+    raise(SIGTSTP);
+
+    // At this point, parent has delieverd SIGCONT
+    // Sleep to let parent take actions based on its decision rules
+    sleep(100);
+}
+
 /**
  * @brief Forks processes to process the array.
  * @param num_desc_processes The number of descendent processes to create.
@@ -44,6 +97,22 @@ int get_integer(const char *nptr)
  */
 void fork_processes(int num_desc_processes, int *arr, int L, int id)
 {
+    /* Assign global exit_arg variable */
+    exit_arg = id;
+
+    /* Register signal handlers for SIGSUSR1, SIGINT, and SIGCHLD*/
+    struct sigaction sa_sigusr1, sa_sigint;
+
+    sa_sigusr1.sa_sigaction = siguser1_handler;
+    sa_sigusr1.sa_flags = SA_SIGINFO;
+    sigaction(SIGUSR1, &sa_sigusr1, NULL);
+
+    if (SIGINT_EXPERIMENT == 1)
+        sa_sigint.sa_handler = sigint_handler;
+    else if (SIGINT_EXPERIMENT == 2)
+        sa_sigint.sa_handler = SIG_IGN;
+    sigaction(SIGINT, &sa_sigint, NULL);
+
     /* CHECK IF PROCESS IS A LEAF NODE */
 
     int l = 0;     // The left index of the array for this process
@@ -187,6 +256,8 @@ void non_leaf(int num_children, int id)
     int bytes = 2 * sizeof(int); // Already sent l, r to child
     pid_t slowest_child = -1;
     double slowest_time = 0;
+    double least_hidden_nodes = INT_MAX;
+    double most_hidden_nodes = 0;
     pid_t pid = getpid();
 
     /* The aggregation of data from each child process */
@@ -237,16 +308,6 @@ void non_leaf(int num_children, int id)
         }
     }
 
-    /* RETRIEVE EXIT STATUSES FROM THE CHILDREN */
-
-    pid_t cpid;
-    int status;
-    for (int n = 0; n < num_children; ++n)
-    {
-        cpid = waitpid(-1, &status, 0);
-        explain_wait_status(cpid, status);
-    }
-
     /* AGGREGATE RESULTS OF THE CHILDREN */
 
     for (int n = 0; n < num_children; ++n)
@@ -261,15 +322,68 @@ void non_leaf(int num_children, int id)
             slowest_time = child_data.elapsed;
             slowest_child = child_data.pid;
         }
+        if (child_data.num_hidden_nodes < least_hidden_nodes)
+            least_hidden_nodes = child_data.num_hidden_nodes;
+        else if (child_data.num_hidden_nodes > most_hidden_nodes)
+            most_hidden_nodes = child_data.num_hidden_nodes;
     }
     ave = sum / count;
 
     clock_gettime(CLOCK_MONOTONIC, &end); // End of timer
     int elapsed = get_nanoseconds_diff(start, end);
 
-    /* SEND AGGREGATED RESULTS TO PARENT (IF NOT ROOT) */
+    /* MAKE DECISIONS FOR ALL CHILDREN BASED ON HIDDEN NODE COUNT */
 
-    struct data parent_data = { max, sum, ave, count, pid, elapsed, bytes, slowest_child, slowest_time };
+    for (int n = 0; n < num_children; ++n) {
+        struct data child_data = child_datas[n];
+        pid_t cpid = child_data.pid;
+        double child_hidden_nodes = child_data.num_hidden_nodes;
+
+        // All rules: deliver SIGCONT
+        kill(cpid, SIGCONT);
+        
+        // Rule 1: Child with most hidden nodes
+        // Do Nothing
+        if (child_hidden_nodes == most_hidden_nodes) {}
+
+        // Rule 2: Child in the middle
+        // Send secret number to child
+        else if (least_hidden_nodes < child_hidden_nodes && child_hidden_nodes < most_hidden_nodes) {
+            int secret_number = rand() % 32 + 1;
+            union sigval info;
+            info.sival_int = secret_number;
+            sigqueue(cpid, SIGUSR1, info);
+        }
+
+        // Rule 3: Child with least hidden nodes
+        // Sleep 10 seconds and then send SIGINT to child
+        else if (child_hidden_nodes == least_hidden_nodes) {
+            sleep(10);
+            kill(cpid, SIGINT);
+        }
+    }
+
+    /* DELIEVER SIGQUIT TO ALL CHILDREN AFTER MAKING DECISIONS */
+    sleep(20);
+    for (int n = 0; n < num_children; ++n) {
+        struct data child_data = child_datas[n];
+        pid_t cpid = child_data.pid;
+        kill(cpid, SIGQUIT);
+    }
+
+    /* RETRIEVE EXIT STATUSES FROM THE CHILDREN */
+
+    pid_t cpid;
+    int status;
+    for (int n = 0; n < num_children; ++n)
+    {
+        cpid = waitpid(-1, &status, 0);
+        explain_wait_status(cpid, status);
+    }
+
+    /* SEND AGGREGATED RESULTS TO PARENT (IF NOT ROOT) */
+    
+    struct data parent_data = { max, sum, ave, count, pid, elapsed, bytes, slowest_child, slowest_time, least_hidden_nodes };
 
     /* Check if it is the root node */
     if (is_root)
@@ -292,7 +406,7 @@ void non_leaf(int num_children, int id)
     }
 
     /* Pause self and await parent to decide fate */
-    raise(SIGTSTP);
+    let_parent_decide_fate();
 
     /* Exit with its unique ID */
     exit(id);
@@ -347,6 +461,7 @@ void leaf(int *arr, int l, int r, int fd, int id)
     int elapsed = get_nanoseconds_diff(start, end);
     result.elapsed = elapsed;
     result.slowest_time = 0;
+    result.num_hidden_nodes = hidden_found;
 
     /* SEND RESULT TO THE PARENT */
 
@@ -366,7 +481,7 @@ void leaf(int *arr, int l, int r, int fd, int id)
     sleep(1);
 
     /* Pause self and await parent to decide fate */
-    raise(SIGTSTP);
+    let_parent_decide_fate();
 
     /* Exit with its unique ID */
     exit(id);
