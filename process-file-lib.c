@@ -403,6 +403,8 @@ void non_leaf(int num_children, int id)
         printf("\n--- FINAL RESULTS ---\n");
         printf("ECE 434 Sp26: I am process %d with return arg %d, and also am the root node.\n", getpid(), id);
         printf("Max = %d, Sum = %d, Average = %f, Count = %d\n", parent_data.max, parent_data.sum, parent_data.ave, parent_data.count);
+        printf("Total number of hidden keys found = %d\n", parent_data.num_hidden_nodes);
+        printf("\t(Recall the above number can be less than H because each parent stores its hidden key count as the minimum count of its children)\n");
         printf("IPC volume = %d bytes\n", parent_data.bytes);
         printf("Slowest child = %d with elapsed time = %.9f sec\n", parent_data.slowest_child, (double)parent_data.slowest_time / 1e9);
     }
