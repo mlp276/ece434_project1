@@ -94,7 +94,11 @@ void let_parent_decide_fate() {
 
     // At this point, parent has delieverd SIGCONT
     // Sleep to let parent take actions based on its decision rules
-    sleep(100);
+    int seconds_remaining = sleep(100);
+
+    /* If sleep was interrupted by a signal, print message and exit */
+    if (seconds_remaining > 0)
+        printf("ECE 434 Sp26: I am process %d with return arg %d. I was sleeping but got interrupted with %d seconds remaining.\n", getpid(), exit_arg, seconds_remaining);
 }
 
 /**
