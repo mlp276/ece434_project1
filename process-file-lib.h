@@ -29,20 +29,21 @@
 /* The data to send from the non-leaf node to the parent process */
 struct data
 {
-    int max;             // The maximum integer of the input file
-    int sum;             // The sum of the integers in the input file
-    double ave;          // The average of the integers in the input file
-    int count;           // The number of integers in the input file
-    pid_t pid;           // The PID of the process that sends this data
-    int elapsed;         // The time (in ns) elapsed for the process
-    int bytes;           // The number of bytes transferred to other processes through pipes
-    pid_t slowest_child; // The PID of the slowest child process
-    int slowest_time;    // The time (in ns) of the slowest child process
-    int num_hidden_nodes; // The number of hidden nodes found by this process
+    int max;                // The maximum integer of the input file
+    int sum;                // The sum of the integers in the input file
+    double ave;             // The average of the integers in the input file
+    int count;              // The number of integers in the input file
+    pid_t pid;              // The PID of the process that sends this data
+    long long elapsed;      // The time (in ns) elapsed for the process
+    int bytes;              // The number of bytes transferred to other processes through pipes
+    pid_t slowest_child;    // The PID of the slowest child process
+    long long slowest_time; // The time (in ns) of the slowest child process
+    int num_hidden_nodes;   // The number of hidden nodes found by this process
 };
 
-int get_nanoseconds_diff(struct timespec start, struct timespec end);
+long long get_nanoseconds_diff(struct timespec start, struct timespec end);
 int get_integer(const char *nptr);
+int exists(char *fname);
 void generate_random_array(int L, int H);
 
 void fork_processes(int num_desc_processes, int *arr, int L, int id);

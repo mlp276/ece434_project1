@@ -43,9 +43,10 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    /* GENERATE RANDOM ARRAY */
+    /* GENERATE RANDOM ARRAY IF NEEDED */
 
-    generate_random_array(L, H);
+    if (!exists("input.txt"))
+        generate_random_array(L, H);
 
     /* OPENING THE INPUT FILE AND WRITING ITS DATA TO ARRAY */
 
@@ -80,8 +81,8 @@ int main(int argc, char *argv[])
 
     clock_gettime(CLOCK_MONOTONIC, &end); // End of timer
 
-    int elapsed = get_nanoseconds_diff(start, end);
-    printf("Total runtime: %.4f sec\n", (double)elapsed / 1e9);
+    long long elapsed = get_nanoseconds_diff(start, end);
+    printf("Total runtime: %.9f sec\n", (double)elapsed / 1e9);
 
     /* END OF THE PROGRAM */
 

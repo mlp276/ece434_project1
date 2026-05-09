@@ -11,9 +11,9 @@ int hidden_found; // The number of hidden keys found
 int hidden_positions[MAX_HIDDEN_KEYS]; // The indices of the hidden keys
 
 /* Returns the difference of nanoseconds between the start and the end */
-int get_nanoseconds_diff(struct timespec start, struct timespec end)
+long long get_nanoseconds_diff(struct timespec start, struct timespec end)
 {
-    return (int)(end.tv_sec - start.tv_sec) * 1000000000LL + (end.tv_nsec - start.tv_nsec);
+    return (long long)(end.tv_sec - start.tv_sec) * 1000000000LL + (end.tv_nsec - start.tv_nsec);
 }
 
 /* Gets the integer from the character */
@@ -33,6 +33,16 @@ int get_integer(const char *nptr)
         exit(1);
     }
     return res;
+}
+
+/* Checks if the file with the given name exists */
+int exists(char *fname) {
+    FILE *file;
+    if ((file = fopen(fname, "r"))) {
+        fclose(file);
+        return 1; // File exists
+    }
+    return 0; // File does not exist or cannot be opened
 }
 
 
@@ -255,7 +265,7 @@ void non_leaf(int num_children, int id)
     int count = 0;
     int bytes = 2 * sizeof(int); // Already sent l, r to child
     pid_t slowest_child = -1;
-    double slowest_time = 0;
+    long long slowest_time = 0;
     double least_hidden_nodes = INT_MAX;
     double most_hidden_nodes = 0;
     pid_t pid = getpid();
@@ -329,9 +339,6 @@ void non_leaf(int num_children, int id)
     }
     ave = sum / count;
 
-    clock_gettime(CLOCK_MONOTONIC, &end); // End of timer
-    int elapsed = get_nanoseconds_diff(start, end);
-
     /* MAKE DECISIONS FOR ALL CHILDREN BASED ON HIDDEN NODE COUNT */
 
     sleep(2); // Sleep to let all children reach the point of waiting for the parent to decide their fate
@@ -383,6 +390,9 @@ void non_leaf(int num_children, int id)
     }
 
     /* SEND AGGREGATED RESULTS TO PARENT (IF NOT ROOT) */
+
+    clock_gettime(CLOCK_MONOTONIC, &end); // End of timer
+    long long elapsed = get_nanoseconds_diff(start, end);
     
     struct data parent_data = { max, sum, ave, count, pid, elapsed, bytes, slowest_child, slowest_time, least_hidden_nodes };
 
@@ -394,23 +404,23 @@ void non_leaf(int num_children, int id)
         printf("ECE 434 Sp26: I am process %d with return arg %d, and also am the root node.\n", getpid(), id);
         printf("Max = %d, Sum = %d, Average = %f, Count = %d\n", parent_data.max, parent_data.sum, parent_data.ave, parent_data.count);
         printf("IPC volume = %d bytes\n", parent_data.bytes);
-        printf("Slowest child = %d with elapsed time = %.2f sec\n", parent_data.slowest_child, (double)parent_data.slowest_time / 1e9);
-        exit(0);
+        printf("Slowest child = %d with elapsed time = %.9f sec\n", parent_data.slowest_child, (double)parent_data.slowest_time / 1e9);
     }
+    else {
+        int sent_bytes = write(parent_write_pfd[PIPE_WRITE_END], &parent_data, sizeof(parent_data));
+        if (sent_bytes < 0)
+        {
+            /* Return error */
+            perror("write");
+            exit(1);
+        }
 
-    int sent_bytes = write(parent_write_pfd[PIPE_WRITE_END], &parent_data, sizeof(parent_data));
-    if (sent_bytes < 0)
-    {
-        /* Return error */
-        perror("write");
-        exit(1);
+        /* Pause self and await parent to decide fate */
+        let_parent_decide_fate();
+
+        /* Exit with its unique ID */
+        exit(id);
     }
-
-    /* Pause self and await parent to decide fate */
-    let_parent_decide_fate();
-
-    /* Exit with its unique ID */
-    exit(id);
 }
 
 /**
@@ -453,18 +463,26 @@ void leaf(int *arr, int l, int r, int fd, int id)
         {
             hidden_positions[hidden_found] = i;
             hidden_found++;
-            printf("ECE 434 Sp26: I am process %d with return arg %d. I found the hidden key in position A[%d]\n",
-                getpid(), id, i);
+            printf("ECE 434 Sp26: I am process %d with return arg %d. I found the hidden key %d in position A[%d]\n",
+                getpid(), id, val, i);
         }
     }
 
-    clock_gettime(CLOCK_MONOTONIC, &end); // End of timer
-    int elapsed = get_nanoseconds_diff(start, end);
-    result.elapsed = elapsed;
     result.slowest_time = 0;
     result.num_hidden_nodes = hidden_found;
 
+    printf("ECE 434 Sp26: I am process %d with return arg %d. "
+           "Processed [%d, %d], found a total of %d hidden keys.\n",
+           getpid(), id, l, r, hidden_found);
+
+    /* Sleep so tree is visible (assignment requirement) */
+    sleep(1);
+
     /* SEND RESULT TO THE PARENT */
+
+    clock_gettime(CLOCK_MONOTONIC, &end); // End of timer
+    long long elapsed = get_nanoseconds_diff(start, end);
+    result.elapsed = elapsed;
 
     if (write(fd, &result, sizeof(result)) < 0)
     {
@@ -473,13 +491,6 @@ void leaf(int *arr, int l, int r, int fd, int id)
         exit(1);
     }
     close(fd);
-
-    printf("ECE 434 Sp26: I am process %d with return arg %d. "
-           "Processed [%d, %d], found a total of %d hidden keys.\n",
-           getpid(), id, l, r, hidden_found);
-
-    /* Sleep so tree is visible (assignment requirement) */
-    sleep(1);
 
     /* Pause self and await parent to decide fate */
     let_parent_decide_fate();
