@@ -69,6 +69,7 @@ int main(int argc, char *argv[])
     while (i < L && fscanf(file, "%d", &arr[i]) == 1) i++;
 
     printf("ECE 434 Sp26: Main process PID = %d\n", getpid());
+    fflush(stdout);
 
     /* FORK CHILDREN TO ALLOCATE RESOURCES */
     
